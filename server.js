@@ -10,13 +10,13 @@ const dolmuslar = [
 
 const rotalar = {
     'Kampüs':[
-            {lat: 40.651114538720336, lng: 29.218212991624526 },
-            {lat: 40.64591790117539,  lng: 29.232186885553055 },
-            {lat: 40.64591790117539,  lng: 29.232186885553055 },
-            {lat: 40.652050228690435, lng: 29.257726878455834 },
-            {lat: 40.65221820211525,  lng: 29.27010838885775  },
-            {lat: 40.6574897680814,   lng: 29.27056822490623  },
-            {lat: 40.65882051425163,  lng: 29.276699371657106 },  
+            {durakAd: 'Kampüs', lat: 40.651114538720336, lng: 29.218212991624526 },
+            {durakAd: 'Petrol', lat: 40.64591790117539,  lng: 29.232186885553055 },
+            {durakAd: 'Termal Yolu', lat: 40.65370219322155,  lng:  29.24513843542296 },
+            {durakAd: 'Petrol', lat: 40.652050228690435, lng: 29.257726878455834 },
+            {durakAd: 'Petrol', lat: 40.65221820211525,  lng: 29.27010838885775  },
+            {durakAd: 'Petrol', lat: 40.6574897680814,   lng: 29.27056822490623  },
+            {durakAd: 'Petrol', lat: 40.65882051425163,  lng: 29.276699371657106 },  
         ]
 };
 
@@ -65,6 +65,20 @@ setInterval(() => {
 
         dolmus.hiz = metre * 3.6; // m/s to km/h
 
+
+        const kalanMetre = metreCinsindenMesafe(dolmus.lat, dolmus.lng, hedef.lat, hedef.lng);
+
+        const hizMs = dolmus.hiz / 3.6; // km/h to m/s
+
+        if (hizMs < 0.5) {
+            dolmus.eta = null; 
+        
+        } else {
+            dolmus.eta = kalanMetre / hizMs; // saniye cinsinden
+        }
+
+        dolmus.siradakiDurak = hedef.durakAd;
+        
 ;
     });
 }, 1000);

@@ -31,7 +31,9 @@
     function popupMetni(dolmus) {
         return `
             <b>Hat:</b> ${dolmus.hat}<br>
-            <b>Hız:</b> ${Math.round(dolmus.hiz)} km/s
+            <b>Hız:</b> ${Math.round(dolmus.hiz)} km/s<br>
+            <b>Tahmini Varış Süresi:</b> ${dolmus.eta ? `${Math.round(dolmus.eta)} s` : 'Bilinmiyor'}<br>
+            <b>Sıradaki Durak:</b> ${dolmus.siradakiDurak || 'Bilinmiyor'}
         `;
     }
 
