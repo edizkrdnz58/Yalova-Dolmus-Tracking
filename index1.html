@@ -27,7 +27,14 @@
                     '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap contributors</a>'
             }
         ).addTo(harita);
-        
+
+    function popupMetni(dolmus) {
+        return `
+            <b>Hat:</b> ${dolmus.hat}<br>
+            <b>Hız:</b> ${Math.round(dolmus.hiz)} km/s
+        `;
+    }
+
      function guncelle() {
         fetch("/api/dolmuslar")
             .then(cevap => cevap.json())
@@ -35,9 +42,10 @@
                 dolmuslar.forEach(dolmus => {
                     if (isaretciler[dolmus.id]) {
                         isaretciler[dolmus.id].setLatLng([dolmus.lat, dolmus.lng]);
+                        isaretciler[dolmus.id].getPopup().setContent(popupMetni(dolmus));
                     } else {
                         const isaretci = L.marker([dolmus.lat, dolmus.lng]).addTo(harita);
-                        isaretci.bindPopup(dolmus.hat);
+                        isaretci.bindPopup(popupMetni(dolmus));
                         isaretciler[dolmus.id] = isaretci;
                     }
                 });

@@ -3,9 +3,9 @@ const fs = require('fs');
 const path = require('path');
 
 const dolmuslar = [
-    { id: '1', hat: 'Kampüs', lat: 40.651114538720336, lng: 29.218212991624526, hedef: 1 },
-    { id: '2', hat: 'Hastane', lat: 40.63398685647124, lng: 29.26833534655411, hedef: 1 },
-    { id: '3', hat: 'Toki', lat: 40.63828465555746, lng: 29.257076998362496, hedef: 1 }
+    { id: '1', hat: 'Kampüs', lat: 40.651114538720336, lng: 29.218212991624526, hedef: 1, hiz: 0 },
+    { id: '2', hat: 'Hastane', lat: 40.63398685647124, lng: 29.26833534655411, hedef: 1, hiz: 0 },
+    { id: '3', hat: 'Toki', lat: 40.63828465555746, lng: 29.257076998362496, hedef: 1, hiz: 0 }
 ];
 
 const rotalar = {
@@ -20,15 +20,36 @@ const rotalar = {
         ]
 };
 
+function metreCinsindenMesafe(lat1, lng1, lat2, lng2) {
+    const R = 6371000;
+    const radyan = (derece) => derece * (Math.PI / 180);
+
+    const dLat = radyan(lat2 - lat1);
+    const dLng = radyan(lng2 - lng1);
+
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(radyan(lat1)) * Math.cos(radyan(lat2)) *
+              Math.sin(dLng / 2) * Math.sin(dLng / 2);
+
+    return 2 * R * Math.asin(Math.sqrt(a));
+}
+
 setInterval(() => {
     dolmuslar.forEach(dolmus => {
         const rota = rotalar[dolmus.hat];
         if (!rota) return;
         const hedef = rota[dolmus.hedef];
+
+        // 1. eski konumları saklar
+        const eskilat = dolmus.lat;
+        const eskilng = dolmus.lng;
+
         const dlat = hedef.lat - dolmus.lat;
         const dlng = hedef.lng - dolmus.lng;
         const mesafe = Math.hypot(dlat, dlng);
+
         const adim = 0.0002; // Her güncellemede gidilecek mesafe
+
 
         if (mesafe <= adim) {
             dolmus.lat = hedef.lat;
@@ -38,10 +59,16 @@ setInterval(() => {
             dolmus.lat += (dlat / mesafe) * adim;
             dolmus.lng += (dlng / mesafe) * adim;
         }
-            
+
+        // 2. yeni konum ile eski konum arasındaki mesafeyi hesaplar
+        const metre = metreCinsindenMesafe(eskilat, eskilng, dolmus.lat, dolmus.lng);
+
+        dolmus.hiz = metre * 3.6; // m/s to km/h
+
+;
     });
-    
 }, 1000);
+
 
 const sunucu = http.createServer((istek, cevap) => {
     console.log('Gelen adres:', istek.url);
