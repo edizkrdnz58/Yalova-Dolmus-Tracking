@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Yalova Dolmuş Takip</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        #harita { height: 100vh; }
+        body { margin: 0; }
+    </style>
+</head>
+<body>
+    <div id="harita"></div>
+    <script>
+        const harita = L.map("harita").setView([40.6549, 29.2738], 13);
+        const isaretciler = {};
+        const mapTilerApiKey = "j6N4XruAQXoiwhaxfiOc";
+
+
+        L.tileLayer(
+            "https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=" + mapTilerApiKey,
+            {
+                maxZoom: 19,
+                attribution:
+                    '&copy; <a href="https://www.maptiler.com/copyright/" target="_blank">MapTiler</a> ' +
+                    '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap contributors</a>'
+            }
+        ).addTo(harita);
+        
+     function guncelle() {
+        fetch("/api/dolmuslar")
+            .then(cevap => cevap.json())
+            .then(dolmuslar => {
+                dolmuslar.forEach(dolmus => {
+                    if (isaretciler[dolmus.id]) {
+                        isaretciler[dolmus.id].setLatLng([dolmus.lat, dolmus.lng]);
+                    } else {
+                        const isaretci = L.marker([dolmus.lat, dolmus.lng]).addTo(harita);
+                        isaretci.bindPopup(dolmus.hat);
+                        isaretciler[dolmus.id] = isaretci;
+                    }
+                });
+            }) 
+            .catch(hata => console.error(hata));
+        }
+
+        guncelle();
+        setInterval(guncelle, 1000);
+            
+    </script>
+</body>
+</html>
