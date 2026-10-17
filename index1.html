@@ -46,16 +46,16 @@
                   color: "red",
                   fillColor: "black",
                 }).addTo(harita);
+                const baslik = `<b>Hat:</b> ${hat}<br><b>Durak:</b> ${durak.durakAd}`;
                 durakIsaretci.bindPopup(
                   baslik,
                 );
 
-                const baslik = `<b>Hat:</b> ${hat}<br><b>Durak:</b> ${durak.durakAd}`;
+    
 
                 let zamanlayici = null;
 
                 function etaGuncelle() {
-
                   fetch(
                     "/api/eta?hat=" +
                       encodeURIComponent(hat) +
@@ -106,8 +106,8 @@
               });
             });
           })
-          .catch(() => {
-            console.error("Duraklar alınamadı.");
+          .catch((hata) => {
+            console.error("Duraklar alınamadı.", hata);
           });
       }
 
