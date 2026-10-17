@@ -99,7 +99,7 @@ setInterval(() => {
     const dlng = hedef.lng - dolmus.lng;
     const mesafe = Math.hypot(dlat, dlng);
 
-    const adim = 0.0001; // Her güncellemede gidilecek mesafe
+    const adim = 0.0002; // Her güncellemede gidilecek mesafe
 
     if (mesafe <= adim) {
       dolmus.lat = hedef.lat;
@@ -165,6 +165,9 @@ const sunucu = http.createServer((istek, cevap) => {
   } else if (adres.pathname === "/api/dolmuslar") {
     cevap.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
     cevap.end(JSON.stringify(dolmuslar));
+  } else if (adres.pathname === "/api/rotalar") {
+    cevap.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+    cevap.end(JSON.stringify(rotalar));
   } else if (adres.pathname === "/api/eta") {
     const hat = adres.searchParams.get("hat");
     const durakMetni = adres.searchParams.get("durak");
@@ -190,7 +193,6 @@ const sunucu = http.createServer((istek, cevap) => {
       const etaSonuclari = dolmuslar
         .filter((dolmus) => dolmus.hat === hat)
         .map((dolmus) => {
-          
           const kalanMetre = duragaKalanMesafe(dolmus, rota, durak);
           const hedef = rota[durak];
           const hizMs = dolmus.hiz / 3.6;

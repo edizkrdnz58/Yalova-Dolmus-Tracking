@@ -1,63 +1,151 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="tr">
-<head>
-    <meta charset="UTF-8">
+  <head>
+    <meta charset="UTF-8" />
     <title>Yalova Dolmuş Takip</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
-        #harita { height: 100vh; }
-        body { margin: 0; }
+      #harita {
+        height: 100vh;
+      }
+      body {
+        margin: 0;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div id="harita"></div>
     <script>
-        const harita = L.map("harita").setView([40.6549, 29.2738], 13);
-        const isaretciler = {};
-        const mapTilerApiKey = "j6N4XruAQXoiwhaxfiOc";
+      const harita = L.map("harita").setView([40.6549, 29.2738], 13);
+      const isaretciler = {};
+      const mapTilerApiKey = "j6N4XruAQXoiwhaxfiOc";
 
+      L.tileLayer(
+        "https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=" +
+          mapTilerApiKey,
+        {
+          maxZoom: 19,
+          attribution:
+            '&copy; <a href="https://www.maptiler.com/copyright/" target="_blank">MapTiler</a> ' +
+            '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap contributors</a>',
+        },
+      ).addTo(harita);
 
-        L.tileLayer(
-            "https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=" + mapTilerApiKey,
-            {
-                maxZoom: 19,
-                attribution:
-                    '&copy; <a href="https://www.maptiler.com/copyright/" target="_blank">MapTiler</a> ' +
-                    '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap contributors</a>'
-            }
-        ).addTo(harita);
+      function duraklariCiz() {
+        fetch("/api/rotalar")
+          .then((cevap) => cevap.json())
+          .then((rotalar) => {
+            Object.keys(rotalar).forEach((hat) => {
+              rotalar[hat].forEach((durak, indeks) => {
+                const durakIsaretci = L.circleMarker([durak.lat, durak.lng], {
+                  radius: 6,
+                  color: "red",
+                  fillColor: "black",
+                }).addTo(harita);
+                durakIsaretci.bindPopup(
+                  baslik,
+                );
 
-    function popupMetni(dolmus) {
+                const baslik = `<b>Hat:</b> ${hat}<br><b>Durak:</b> ${durak.durakAd}`;
+
+                let zamanlayici = null;
+
+                function etaGuncelle() {
+
+                  fetch(
+                    "/api/eta?hat=" +
+                      encodeURIComponent(hat) +
+                      "&durak=" +
+                      indeks,
+                  )
+                    .then((cevap) => cevap.json())
+                    .then((sonuclar) => {
+                      if (sonuclar.length === 0) {
+                        durakIsaretci.setPopupContent(
+                          baslik + "<br>Şu an bu hatta dolmuş yok.",
+                        );
+                        return;
+                      }
+
+                      const satirlar = sonuclar.map((sonuc) => {
+                        if (sonuc.eta === null) {
+                          return "<br>Hesaplanamıyor.";
+                        }
+                        if (sonuc.eta  < 60) {
+                          return "<br>1 dakikadan az";
+                        } else {
+                          return `<br><b>Dolmuş ${
+                            sonuc.dolmus
+                          }:</b> ${Math.round(sonuc.eta / 60)} dk`;
+                        }
+                      });
+
+                      durakIsaretci.setPopupContent(baslik + satirlar.join(""));
+                    })
+                    .catch(() => {
+                      durakIsaretci.setPopupContent(
+                        baslik + "<br>Bilgi alınamadı.",
+                      );
+                    });
+                }
+
+                durakIsaretci.on("popupopen", () => {
+                    durakIsaretci.setPopupContent(baslik + "<br>Yükleniyor...");
+                    etaGuncelle();
+                    zamanlayici = setInterval(etaGuncelle, 2000);
+                });
+
+                durakIsaretci.on("popupclose", () => {
+                  clearInterval(zamanlayici);
+                });
+
+              });
+            });
+          })
+          .catch(() => {
+            console.error("Duraklar alınamadı.");
+          });
+      }
+
+      function popupMetni(dolmus) {
         return `
             <b>Hat:</b> ${dolmus.hat}<br>
             <b>Hız:</b> ${Math.round(dolmus.hiz)} km/s<br>
-            <b>Tahmini Varış Süresi:</b> ${dolmus.eta ? `${Math.round(dolmus.eta)} s` : 'Bilinmiyor'}<br>
-            <b>Sıradaki Durak:</b> ${dolmus.siradakiDurak || 'Bilinmiyor'}
+            <b>Tahmini Varış Süresi:</b> ${dolmus.eta ? `${Math.round(dolmus.eta)} s` : "Bilinmiyor"}<br>
+            <b>Sıradaki Durak:</b> ${dolmus.siradakiDurak || "Bilinmiyor"}
         `;
-    }
+      }
 
-     function guncelle() {
+      function guncelle() {
         fetch("/api/dolmuslar")
-            .then(cevap => cevap.json())
-            .then(dolmuslar => {
-                dolmuslar.forEach(dolmus => {
-                    if (isaretciler[dolmus.id]) {
-                        isaretciler[dolmus.id].setLatLng([dolmus.lat, dolmus.lng]);
-                        isaretciler[dolmus.id].getPopup().setContent(popupMetni(dolmus));
-                    } else {
-                        const isaretci = L.marker([dolmus.lat, dolmus.lng]).addTo(harita);
-                        isaretci.bindPopup(popupMetni(dolmus));
-                        isaretciler[dolmus.id] = isaretci;
-                    }
-                });
-            }) 
-            .catch(hata => console.error(hata));
-        }
+          .then((cevap) => cevap.json())
+          .then((dolmuslar) => {
+            dolmuslar.forEach((dolmus) => {
+              if (isaretciler[dolmus.id]) {
+                isaretciler[dolmus.id].setLatLng([dolmus.lat, dolmus.lng]);
+                isaretciler[dolmus.id]
+                  .getPopup()
+                  .setContent(popupMetni(dolmus));
+              } else {
+                const isaretci = L.marker([dolmus.lat, dolmus.lng]).addTo(
+                  harita,
+                );
+                isaretci.bindPopup(popupMetni(dolmus));
+                isaretciler[dolmus.id] = isaretci;
+              }
+            });
+          })
+          .catch((hata) => console.error(hata));
+      }
 
-        guncelle();
-        setInterval(guncelle, 1000);
-            
+      duraklariCiz();
+
+      guncelle();
+      setInterval(guncelle, 1000);
     </script>
-</body>
+  </body>
 </html>
