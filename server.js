@@ -10,6 +10,11 @@ const dolmuslar = [
     lng: 29.218212991624526,
     hiz: 0,
     rotaMesafe: 0,
+    gercekMesafe: 0,
+    katedilen: 0,
+    gecmis: [],
+    olcumMesafe: 0,
+    sonZaman: Date.now() / 1000,
   },
   {
     id: "2",
@@ -18,6 +23,9 @@ const dolmuslar = [
     lng: 29.26833534655411,
     hiz: 0,
     rotaMesafe: 0,
+    gercekMesafe: 0,
+    katedilen: 0,
+    gecmis: [],
   },
   {
     id: "3",
@@ -26,6 +34,9 @@ const dolmuslar = [
     lng: 29.257076998362496,
     hiz: 0,
     rotaMesafe: 0,
+    gercekMesafe: 0,
+    katedilen: 0,
+    gecmis: [],
   },
 ];
 
@@ -53,6 +64,9 @@ for (let i = 1; i < kampusCizgisi.length; i++) {
 
 const TOPLAM = birikimli[birikimli.length - 1];
 const HIZ = 10; // m/s 36 km/h
+const PENCERE = 12;
+const ALFA = 0.3;
+
 
 function cizgiyeOturt(lat, lng) {
   let enYakin = { sapma: Infinity, mesafe: 0 };
@@ -107,6 +121,60 @@ function konumdanNoktaya(mesafe) {
   }
   return kampusCizgisi[kampusCizgisi.length - 1];
 }
+
+function gurultuEkle(lat, lng, metre) {
+  const dLat = ((Math.random() - 0.5) * 2 * metre) / 111195;
+  const dLng = ((Math.random() - 0.5) * 2 * metre) / (111195 * Math.cos((lat * Math.PI) / 180));
+  return { lat: lat + dLat, lng: lng + dLng };
+}
+
+function konumGuncelle(dolmus, lat, lng) {
+  const rota = rotalar[dolmus.hat];
+  const oturan = cizgiyeOturt(lat, lng);
+  const simdi = Date.now() / 1000;
+
+  let fark = oturan.mesafe - dolmus.olcumMesafe;
+
+  if (fark < -TOPLAM / 2) fark += TOPLAM;   // tur sarması
+  dolmus.katedilen += fark;
+  dolmus.olcumMesafe = oturan.mesafe;
+
+  dolmus.gecmis.push({ t: Date.now() / 1000, yol: dolmus.katedilen }); // O anın zamanını saniye cinsinden kaydediyoruz
+  if (dolmus.gecmis.length > PENCERE) dolmus.gecmis.shift();
+
+  if (dolmus.gecmis.length >= 2) {
+    const ilk = dolmus.gecmis[0];
+    const son = dolmus.gecmis[dolmus.gecmis.length - 1];
+    const gecenSure = son.t - ilk.t;
+
+    if (gecenSure >= 1) {
+      const olculenHizMs = (son.yol - ilk.yol) / gecenSure;
+      dolmus.hiz = Math.max(0, olculenHizMs * 3.6); // m/s to km/h
+      }
+    }
+    
+  const dt = simdi - dolmus.sonZaman;
+  dolmus.sonZaman = simdi;
+
+  const tahmin = dolmus.rotaMesafe + (dolmus.hiz / 3.6) * dt; // km/h to m/s
+  const sapma = farkiDuzelt(oturan.mesafe - tahmin);
+  dolmus.rotaMesafe = ((tahmin + ALFA * sapma) % TOPLAM + TOPLAM) % TOPLAM;
+  
+  const nokta = konumdanNoktaya(dolmus.rotaMesafe);
+  dolmus.lat = nokta.lat;
+  dolmus.lng = nokta.lng;
+
+  const siradaki = rota.find((d) => d.rotaMesafe > dolmus.rotaMesafe) || rota[0];
+  dolmus.siradakiDurak = siradaki.durakAd;
+
+  const hizMs = dolmus.hiz / 3.6;
+  dolmus.eta = hizMs < 0.5 ? null : duragaKalanMesafe(dolmus, siradaki) / hizMs;
+
+}
+
+  function farkiDuzelt(x) {
+    return((((x + TOPLAM / 2) % TOPLAM) + TOPLAM) % TOPLAM) - TOPLAM / 2;
+  }
 
 const rotalar = {
   Kampüs: [
@@ -170,28 +238,15 @@ function duragaKalanMesafe(dolmus, durak) {
 
 setInterval(() => {
   dolmuslar.forEach((dolmus) => {
-    const rota = rotalar[dolmus.hat];
-    if (!rota) return;
+    if (!rotalar[dolmus.hat]) return;
 
-    const eskiMesafe = dolmus.rotaMesafe;
-    dolmus.rotaMesafe = (eskiMesafe + HIZ) % TOPLAM;
+      dolmus.gercekMesafe = (dolmus.gercekMesafe + HIZ) % TOPLAM;
+      const gercek = konumdanNoktaya(dolmus.gercekMesafe);
 
-    const nokta = konumdanNoktaya(dolmus.rotaMesafe);
-    dolmus.lat = nokta.lat;
-    dolmus.lng = nokta.lng;
+      const olculen = gurultuEkle(gercek.lat, gercek.lng, 8);
 
-    if (dolmus.rotaMesafe > eskiMesafe) {
-      dolmus.hiz = HIZ * 3.6; // m/s to km/h
-    }
-
-    const siradaki =
-      rota.find((d) => d.rotaMesafe > dolmus.rotaMesafe) || rota[0];
-    dolmus.siradakiDurak = siradaki.durakAd;
-
-    const hizMs = dolmus.hiz / 3.6; // km/h to m/s
-    dolmus.eta =
-      hizMs < 0.5 ? null : duragaKalanMesafe(dolmus, siradaki) / hizMs;
-  });
+      konumGuncelle(dolmus, olculen.lat, olculen.lng);
+    });
 }, 1000);
 
 const sunucu = http.createServer((istek, cevap) => {
@@ -249,8 +304,7 @@ const sunucu = http.createServer((istek, cevap) => {
         .filter((dolmus) => dolmus.hat === hat)
         .map((dolmus) => {
           const kalanMetre = duragaKalanMesafe(dolmus, rota[durak]);
-          const hedef = rota[durak];
-          const hizMs = dolmus.hiz / 3.6;
+          const hizMs = dolmus.hiz / 3.6; // km/h to m/s
           return {
             dolmus: dolmus.id,
             metre: Math.round(kalanMetre),
@@ -274,3 +328,5 @@ const PORT = 3000;
 sunucu.listen(PORT, () => {
   console.log(`Sunucu ${PORT} portunda çalışıyor...`);
 });
+
+
