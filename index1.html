@@ -47,11 +47,7 @@
                   fillColor: "black",
                 }).addTo(harita);
                 const baslik = `<b>Hat:</b> ${hat}<br><b>Durak:</b> ${durak.durakAd}`;
-                durakIsaretci.bindPopup(
-                  baslik,
-                );
-
-    
+                durakIsaretci.bindPopup(baslik);
 
                 let zamanlayici = null;
 
@@ -75,7 +71,7 @@
                         if (sonuc.eta === null) {
                           return "<br>Hesaplanamıyor.";
                         }
-                        if (sonuc.eta  < 60) {
+                        if (sonuc.eta < 60) {
                           return "<br>1 dakikadan az";
                         } else {
                           return `<br><b>Dolmuş ${
@@ -94,15 +90,14 @@
                 }
 
                 durakIsaretci.on("popupopen", () => {
-                    durakIsaretci.setPopupContent(baslik + "<br>Yükleniyor...");
-                    etaGuncelle();
-                    zamanlayici = setInterval(etaGuncelle, 2000);
+                  durakIsaretci.setPopupContent(baslik + "<br>Yükleniyor...");
+                  etaGuncelle();
+                  zamanlayici = setInterval(etaGuncelle, 2000);
                 });
 
                 durakIsaretci.on("popupclose", () => {
                   clearInterval(zamanlayici);
                 });
-
               });
             });
           })
